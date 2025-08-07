@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reserva Depto Reñaca</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .calendario {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      margin-top: 20px;
+    }
+
+    .dia {
+      background: white;
+      border: 1px solid #ccc;
+      padding: 8px;
+      height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .ocupado {
+      background-color: #eee;
+      color: #aaa;
+      pointer-events: none;
+    }
+
+    .seleccionado {
+      background-color: #cce5ff;
+    }
+
+    .formulario {
+      margin-top: 30px;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 8px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    #mensaje {
+      margin-top: 10px;
+      font-weight: bold;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Reserva tu estadía en Reñaca 🏖️</h1>
+
+  <div class="calendario" id="calendario"></div>
+
+  <div class="formulario">
+    <label>Nombre:</label>
+    <input type="text" id="nombre" required>
+
+    <label>Email:</label>
+    <input type="email" id="correo" required>
+
+    <label>Fecha entrada:</label>
+    <input type="text" id="fechaInicio" readonly>
+
+    <label>Fecha salida:</label>
+    <input type="text" id="fechaFin" readonly>
+
+    <label>Total:</label>
+    <input type="text" id="total" readonly>
+
+    <button onclick="enviarReserva()">Reservar</button>
+    <div id="mensaje"></div>
+  </div>
+
+  <script>
+    const dias = 31;
+    const mes = 7; // Agosto (0 = enero)
+    const anio = 2025;
+    const calendario = document.getElementById('calendario');
+
+    const precios = {
+      1: 70000, 2: 70000, 3: 65000, 4: 65000, 5: 65000,
+      6: 80000, 7: 80000, 8: 70000, 9: 70000, 10: 70000
+    };
+
+    const diasOcupados = []; // Se cargarán desde el backend más adelante
+
+    let seleccionInicio = null;
+    let seleccionFin = null;
+
+    function crearCalendario() {
+      calendario.innerHTML = '';
+
+      const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      diasSemana.forEach(d => {
+        const cell = document.createElement('div');
+        cell.innerText = d;
+        cell.style.fontWeight = 'bold';
+        calendario.appendChild(cell);
+      });
+
+      const primerDia = new Date(anio, mes, 1).getDay();
+      for (let i = 0; i < primerDia; i++) {
+        calendario.appendChild(document.createElement('div'));
+      }
+
+      for (let dia = 1; dia <= dias; dia++) {
+        const div = document.createElement('div');
+        div.className = 'dia';
+        div.dataset.dia = dia;
+
+        if (diasOcupados.includes(dia)) {
+          div.classList.add('ocupado');
+        }
+
+        div.innerHTML = `<div>${dia}</div><small>$${(precios[dia] || 70000).toLocaleString('es-CL')}</small>`;
+
+        div.addEventListener('click', () => seleccionar(dia));
+        calendario.appendChild(div);
+      }
+    }
+
+    function seleccionar(dia) {
+      if (!seleccionInicio || (seleccionInicio && seleccionFin)) {
+        seleccionInicio = dia;
+        seleccionFin = null;
+      } else if (dia > seleccionInicio) {
+        seleccionFin = dia;
+      } else {
+        seleccionInicio = dia;
+        seleccionFin = null;
+      }
+      actualizarSeleccion();
+    }
+
+    function actualizarSeleccion() {
+      const celdas = document.querySelectorAll('.dia');
+      celdas.forEach(cell => {
+        const d = parseInt(cell.dataset.dia);
+        cell.classList.remove('seleccionado');
+        if (d === seleccionInicio || d === seleccionFin || (seleccionInicio && seleccionFin && d > seleccionInicio && d < seleccionFin)) {
+          cell.classList.add('seleccionado');
+        }
+      });
+
+      if (seleccionInicio && seleccionFin) {
+        document.getElementById('fechaInicio').value = `${seleccionInicio}/08/2025`;
+        document.getElementById('fechaFin').value = `${seleccionFin}/08/2025`;
+
+        let total = 0;
+        for (let d = seleccionInicio; d < seleccionFin; d++) {
+          total += precios[d] || 70000;
+        }
+        document.getElementById('total').value = `$${total.toLocaleString('es-CL')}`;
+      } else {
+        document.getElementById('fechaInicio').value = '';
+        document.getElementById('fechaFin').value = '';
+        document.getElementById('total').value = '';
+      }
+    }
+
+    async function enviarReserva() {
+      const nombre = document.getElementById('nombre').value.trim();
+      const correo = document.getElementById('correo').value.trim();
+      const inicio = document.getElementById('fechaInicio').value;
+      const fin = document.getElementById('fechaFin').value;
+      const total = document.getElementById('total').value;
+
+      if (!nombre || !correo || !inicio || !fin || !total) {
+        alert('Por favor completa todos los campos.');
+        return;
+      }
+
+      const response = await fetch('https://script.google.com/macros/s/TU_SCRIPT_URL/exec', {
+        method: 'POST',
+        body: new URLSearchParams({
+          nombre,
+          correo,
+          inicio,
+          fin,
+          total
+        })
+      });
+
+      const mensaje = await response.text();
+      document.getElementById('mensaje').innerText = mensaje;
+    }
+
+    crearCalendario();
+  </script>
+
+</body>
+</html>
